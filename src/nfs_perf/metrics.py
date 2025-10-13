@@ -1,24 +1,8 @@
-# import re
-
-# def _convert_to_mb(value, unit):
-#     """Converts a value from a given unit to megabytes (MB)."""
-#     unit = unit.lower()
-#     if unit in ["mb", "mib"]:
-#         return value
-#     elif unit in ["kb", "kib"]:
-#         return value / 1024
-#     elif unit in ["gb", "gib"]:
-#         return value * 1024
-#     elif unit in ["b"]:
-#         return value / (1024 * 1024)
-#     return 0.0
-
 import re
 
 
 def _convert_to_mb(value: float, unit: str) -> float:
     """Converts a value from a given unit to megabytes (MB)."""
-    # Normalize unit by removing '/s' for bandwidth units
     unit = unit.lower().replace("/s", "")
     if unit in ["mb", "mib"]:
         return value
