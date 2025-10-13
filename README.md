@@ -20,7 +20,7 @@ poetry config virtualenvs.in-project true
 Clone the repository and install dependencies:
 
 ```bash
-git clone TODO
+git clone git@github.com:RMamonts/nfs-perf.git
 cd nfs-perf
 poetry install
 ```
