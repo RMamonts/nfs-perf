@@ -1,0 +1,46 @@
+[project]
+name = "nfs-perf"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "VYAR",email = "vadik.yarovoy@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "pytest",
+]
+
+[tool.poetry]
+packages = [{include = "nfs_perf", from = "src"}]
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+nfs-perf = "nfs_perf.main:main"
+
+[tool.ruff]
+target-version = "py313"
+
+[tool.ruff.lint]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+]
+
+[dependency-groups]
+dev = [
+    "ruff (>=0.14.0,<0.15.0)"
+]
