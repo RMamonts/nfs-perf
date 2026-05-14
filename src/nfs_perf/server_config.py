@@ -99,9 +99,7 @@ class MamontServer(NFSServer):
 
         print(f" Building {self.name} (cargo build --release)...")
         self.executor.run(
-            self._source_env(
-                f"cd {self.project_dir} && cargo build --release --example mirrorfs"
-            ),
+            self._source_env(f"cd {self.project_dir} && cargo build --release"),
             timeout=600,
             check=True,
         )
@@ -116,7 +114,7 @@ class MamontServer(NFSServer):
         self._ensure_built()
         self._write_config()
 
-        binary = f"{self.project_dir}/target/release/examples/mirrorfs"
+        binary = f"{self.project_dir}/target/release/mirrorfs"
         cmd = (
             f"nohup {binary} -c {self.BENCH_CONFIG_PATH} "
             f"> /tmp/nfs-mamont.log 2>&1 & echo $!"
