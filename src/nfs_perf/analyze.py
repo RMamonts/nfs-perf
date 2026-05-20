@@ -38,7 +38,7 @@ def remove_outliers_iqr(values: list[float], factor: float = 1.5) -> list[float]
 
 
 def aggregate(results: list[dict], metric: str = "bw_mib") -> dict:
-    """Group by (server, test_type, block_size, num_jobs, iodepth, direct) and compute stats."""
+    """Group by benchmark dimensions and compute stats."""
     groups: dict[tuple, list[float]] = defaultdict(list)
     for result in results:
         key = (

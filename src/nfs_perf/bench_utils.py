@@ -1,6 +1,6 @@
-from bench_config import BenchConfig
-from fio import FioResult, parse_fio_result, run_fio
-from server_config import NFSServer
+from .bench_config import BenchConfig
+from .fio import FioResult, parse_fio_result, run_fio
+from .server_config import NFSServer
 
 
 def run_test_case(

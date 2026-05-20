@@ -1,8 +1,8 @@
 import subprocess
 import time
 
-from bench_config import BenchConfig
-from server_config import NFSServer
+from .bench_config import BenchConfig
+from .server_config import NFSServer
 
 
 def ensure_mount(mount_point: str, server: NFSServer, cfg: BenchConfig):
@@ -27,7 +27,7 @@ def ensure_mount(mount_point: str, server: NFSServer, cfg: BenchConfig):
         f"{cfg.nfs_data_ip}:{server.mount_export}",
         mount_point,
     ]
-    print(f" [mount] {' '.join(cmd)}")
+    print(f" [mount] {' '.join(cmd)}", flush=True)
     subprocess.run(cmd, check=True, timeout=30)
     time.sleep(1)
 
@@ -42,6 +42,6 @@ def unmount(mount_point: str):
     if result.returncode != 0:
         return
 
-    print(f" [umount] {mount_point}")
+    print(f" [umount] {mount_point}", flush=True)
     subprocess.run(["sudo", "umount", "-f", mount_point], check=False, timeout=30)
     time.sleep(1)

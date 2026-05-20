@@ -6,8 +6,8 @@ import time
 from collections import defaultdict
 from dataclasses import asdict
 
-from fio import FioResult
-from ssh import RemoteExecutor
+from .fio import FioResult
+from .ssh import RemoteExecutor
 
 
 def cleanup_test_files(directory: str):

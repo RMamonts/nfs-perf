@@ -1,14 +1,43 @@
 import argparse
 
-from bench_config import BenchConfig
+from .bench_config import BenchConfig
+
+SERVER_CHOICES = ("mamont", "ganesha")
+
+
+def parse_server_list(values: list[str]) -> list[str]:
+    servers = []
+    for value in values:
+        for server in value.split(","):
+            server = server.strip()
+            if not server:
+                continue
+            if server not in SERVER_CHOICES:
+                choices = ", ".join(SERVER_CHOICES)
+                raise argparse.ArgumentTypeError(
+                    f"invalid choice: {server!r} (choose from {choices})"
+                )
+            if server not in servers:
+                servers.append(server)
+    return servers
 
 
 def parse_args(cgf: BenchConfig):
     parser = argparse.ArgumentParser(
-        description="NFS Benchmark: nfs-mamont",
+        description="NFS Benchmark: nfs-mamont / nfs-ganesha",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
+    parser.add_argument(
+        "--server",
+        nargs="+",
+        default=[cgf.server_type],
+        metavar="{mamont,ganesha}",
+        help=(
+            "NFS server implementation(s) to test. Accepts a space-separated "
+            "or comma-separated list (default: mamont)."
+        ),
+    )
     parser.add_argument(
         "--fio-type",
         "--fio-types",
@@ -90,7 +119,10 @@ def parse_args(cgf: BenchConfig):
     parser.add_argument(
         "--mamont-project-dir",
         default=cgf.mamont_project_dir,
-        help=f"Project dir for nfs-mamont on server (default: {cgf.mamont_project_dir})",
+        help=(
+            "Project dir for nfs-mamont on server "
+            f"(default: {cgf.mamont_project_dir})"
+        ),
     )
     parser.add_argument(
         "--mamont-export-root",
@@ -122,6 +154,42 @@ def parse_args(cgf: BenchConfig):
         default=cgf.mamont_mount_opts,
         help=f"Mount options for mamont (default: {cgf.mamont_mount_opts})",
     )
+    parser.add_argument(
+        "--ganesha-binary",
+        default=cgf.ganesha_binary,
+        help=f"Ganesha binary on server (default: {cgf.ganesha_binary})",
+    )
+    parser.add_argument(
+        "--ganesha-config-path",
+        default=cgf.ganesha_config_path,
+        help=(
+            "Remote path for generated Ganesha config "
+            f"(default: {cgf.ganesha_config_path})"
+        ),
+    )
+    parser.add_argument(
+        "--ganesha-export-root",
+        default=cgf.ganesha_export_root,
+        help=f"Ganesha export root dir (default: {cgf.ganesha_export_root})",
+    )
+    parser.add_argument(
+        "--ganesha-export-paths",
+        default=cgf.ganesha_export_paths,
+        help=f"Ganesha export path under root (default: {cgf.ganesha_export_paths})",
+    )
+    parser.add_argument(
+        "--ganesha-mount-export",
+        default=cgf.ganesha_mount_export,
+        help=(
+            "NFS export path for Ganesha mount "
+            "(default: derived from --ganesha-export-root/--ganesha-export-paths)"
+        ),
+    )
+    parser.add_argument(
+        "--ganesha-mount-opts",
+        default=cgf.ganesha_mount_opts,
+        help=f"Mount options for Ganesha (default: {cgf.ganesha_mount_opts})",
+    )
 
     parser.add_argument(
         "--local-mode",
@@ -130,5 +198,15 @@ def parse_args(cgf: BenchConfig):
     )
 
     args = parser.parse_args()
+    try:
+        args.server = parse_server_list(args.server)
+    except argparse.ArgumentTypeError as exc:
+        parser.error(f"argument --server: {exc}")
+
+    if not args.server_host:
+        parser.error(
+            "--server-host is required. Use the SSH host for the NFS server, "
+            "or pass --server-host localhost to run the server locally."
+        )
 
     return args

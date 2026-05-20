@@ -2,7 +2,7 @@ import json
 import subprocess
 from dataclasses import dataclass
 
-from bench_config import BenchConfig
+from .bench_config import BenchConfig
 
 
 @dataclass

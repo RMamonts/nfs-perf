@@ -6,10 +6,10 @@ authors = [
     {name = "VYAR",email = "vadik.yarovoy@gmail.com"}
 ]
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 dependencies = [
     "matplotlib (>=3.10.9,<4.0.0)",
-    "numpy (>=2.4.4,<3.0.0)"
+    "numpy (<3)"
 ]
 
 [tool.poetry]
