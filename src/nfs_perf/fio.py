@@ -57,6 +57,7 @@ def run_fio(
         f"--direct={direct}",
         f"--ioengine={cfg.ioengine}",
         f"--directory={directory}",
+        "--filename_format=$jobname.$jobnum",
         "--group_reporting",
         "--output-format=json",
         "--fallocate=none",
