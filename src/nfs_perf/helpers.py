@@ -1,6 +1,7 @@
 import csv
 import json
 import os
+import shlex
 import subprocess
 import time
 from collections import defaultdict
@@ -35,6 +36,23 @@ def drop_caches(server_executor: RemoteExecutor | None):
         server_executor.run(drop_cmd, check=False)
 
     time.sleep(1)
+
+
+def print_file_allocation(directory: str):
+    """Print a quick sparse-file check for fio test files."""
+    quoted_dir = shlex.quote(directory.rstrip("/") or "/")
+    pattern = f"{quoted_dir}/testfile.*"
+    cmd = (
+        f"if ls {pattern} >/dev/null 2>&1; then "
+        "echo ' [verify] file sizes:'; "
+        f"ls -lh {pattern}; "
+        "echo ' [verify] allocated space:'; "
+        f"du -h {pattern}; "
+        "echo ' [verify] stat blocks:'; "
+        f"stat -c '%n size=%s blocks=%b block_size=%B' {pattern}; "
+        "else echo ' [verify] No test files found'; fi"
+    )
+    subprocess.run(cmd, shell=True, check=False, timeout=60)
 
 
 def save_results(
