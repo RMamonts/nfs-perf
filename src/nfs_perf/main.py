@@ -4,7 +4,7 @@ from datetime import datetime
 
 import parser
 from bench_config import BenchConfig
-from bench_utils import run_test_case
+from bench_utils import needs_read_prepare, run_test_case
 from fio import FioResult
 from helpers import cleanup_test_files, drop_caches, save_results
 from mount import ensure_mount, unmount
@@ -134,7 +134,8 @@ def main():
                                 timeout=10,
                             )
                             cleanup_test_files(test_dir)
-                            drop_caches(server.executor)
+                            if not needs_read_prepare(test_type):
+                                drop_caches(server.executor)
 
                             result = run_test_case(
                                 server,
