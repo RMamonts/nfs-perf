@@ -1,5 +1,6 @@
 import os
 import subprocess
+import sys
 from datetime import datetime
 
 import parser
@@ -8,7 +9,7 @@ from bench_utils import needs_read_prepare, run_test_case
 from fio import FioResult
 from helpers import cleanup_test_files, drop_caches, save_results
 from mount import ensure_mount, unmount
-from server_config import build_server
+from server_config import build_servers
 
 
 def main():
@@ -50,12 +51,15 @@ def main():
 
     all_results: list[FioResult] = []
     combo_idx = 0
-
-    server = build_server(cfg)
+    servers_names = ["mamont", "ganesha"]
+    servers = build_servers(cfg, servers_names)  # add to params
+    if not servers:
+        print("ERROR: No servers selected")
+        sys.exit(1)
 
     git_pull = "git -C /home/ubuntu/nfs-mamont pull"
     subprocess.run(git_pull, shell=True, check=False, timeout=10)
-    server.executor.run(git_pull, check=False)
+    servers[-1].executor.run(git_pull, check=False)
 
     git_checkout = "git -C /home/ubuntu/nfs-mamont checkout main"
 
@@ -73,98 +77,81 @@ def main():
 
     git_info = ""
 
-    if cfg.branch is not None and cfg.commit is not None:
-        git_checkout = f"git -C /home/ubuntu/nfs-mamont checkout {cfg.commit}"
-        git_info = f"{cfg.branch}_{cfg.commit}"
-    elif cfg.branch is not None:
-        commit = subprocess.run(
-            ssh_cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            env=os.environ.copy(),  # inherit current env (incl. SSH_AUTH_SOCK)
-            check=False,  # we want to inspect the return code ourselves
-        )
+    commit = subprocess.run(
+        ssh_cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        env=os.environ.copy(),
+        check=False,
+    )
 
-        print(f"COMMIT: \n", commit.stdout[:7])
+    print("COMMIT:\n", commit.stdout[:7])
 
-        git_info = f"{cfg.branch}_{commit.stdout[:7]}"
-        git_checkout = f"git -C /home/ubuntu/nfs-mamont checkout {cfg.branch}"
-    else:
-        commit = subprocess.run(
-            ssh_cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            env=os.environ.copy(),  # inherit current env (incl. SSH_AUTH_SOCK)
-            check=False,  # we want to inspect the return code ourselves
-        )
+    git_info = f"main_{commit.stdout[:7]}"
 
-        print("COMMIT:\n", commit.stdout[:7])
+    servers[-1].executor.run(git_checkout, check=False)
 
-        git_info = f"main_{commit.stdout[:7]}"
-
-    server.executor.run(git_checkout, check=False)
-
-    for test_type in args.fio_types:
-        for bs in args.block_sizes:
-            for num_jobs in args.num_jobs:
-                for iodepth in args.iodepths:
-                    for direct in args.direct_modes:
-                        for iteration in range(1, args.iterations + 1):
-                            combo_idx += 1
-                            print(f"\n{'#' * 60}")
-                            print(
-                                f"# Combo {combo_idx}/{total_combos} "
-                                f"{test_type} bs={bs} jobs={num_jobs} depth={iodepth} "
-                                f"direct={direct} iter={iteration}"
-                            )
-                            print(f"{'#' * 60}")
-                            test_dir = cfg.test_dir
-                            if args.local_mode:
-                                test_dir = f"{cfg.mamont_export_root}/{cfg.mamont_export_paths}"
-
-                            print(f"\n>>> Starting iteration {iteration}")
-                            server.restart()
-                            if not args.local_mode:
-                                ensure_mount(cfg.nfs_mount_point, server, cfg)
-                            subprocess.run(
-                                ["sudo", "mkdir", "-p", test_dir],
-                                check=False,
-                                timeout=10,
-                            )
-                            cleanup_test_files(test_dir)
-                            if not needs_read_prepare(test_type):
-                                drop_caches(server.executor)
-
-                            result = run_test_case(
-                                server,
-                                test_dir,
-                                test_type,
-                                test_type,
-                                bs,
-                                num_jobs,
-                                iodepth,
-                                direct,
-                                iteration,
-                                cfg,
-                            )
-                            if result:
-                                all_results.append(result)
-
-                            cleanup_test_files(test_dir)
-
-                            if combo_idx % 5 == 0:
-                                save_results(
-                                    all_results,
-                                    timestamp,
-                                    cfg.output_dir,
-                                    git_info,
+    for server in servers:
+        for test_type in args.fio_types:
+            for bs in args.block_sizes:
+                for num_jobs in args.num_jobs:
+                    for iodepth in args.iodepths:
+                        for direct in args.direct_modes:
+                            for iteration in range(1, args.iterations + 1):
+                                combo_idx += 1
+                                print(f"\n{'#' * 60}")
+                                print(
+                                    f"# Combo {combo_idx}/{total_combos} "
+                                    f"{test_type} bs={bs} jobs={num_jobs} depth={iodepth} "
+                                    f"direct={direct} iter={iteration}"
                                 )
+                                print(f"{'#' * 60}")
+                                test_dir = cfg.test_dir
+                                if args.local_mode:
+                                    test_dir = f"{cfg.mamont_export_root}/{cfg.mamont_export_paths}"
 
-                            if not args.local_mode:
-                                unmount(cfg.nfs_mount_point)
-                            server.stop()
+                                print(f"\n>>> Starting iteration {iteration}")
+                                server.restart()
+                                if not args.local_mode:
+                                    ensure_mount(cfg.nfs_mount_point, server, cfg)
+                                subprocess.run(
+                                    ["sudo", "mkdir", "-p", test_dir],
+                                    check=False,
+                                    timeout=10,
+                                )
+                                cleanup_test_files(test_dir)
+                                if not needs_read_prepare(test_type):
+                                    drop_caches(server.executor)
+
+                                result = run_test_case(
+                                    server,
+                                    test_dir,
+                                    test_type,
+                                    test_type,
+                                    bs,
+                                    num_jobs,
+                                    iodepth,
+                                    direct,
+                                    iteration,
+                                    cfg,
+                                )
+                                if result:
+                                    all_results.append(result)
+
+                                cleanup_test_files(test_dir)
+
+                                if combo_idx % 5 == 0:
+                                    save_results(
+                                        all_results,
+                                        timestamp,
+                                        cfg.output_dir,
+                                        git_info,
+                                    )
+
+                                if not args.local_mode:
+                                    unmount(cfg.nfs_mount_point)
+                                server.stop()
 
 
 main()

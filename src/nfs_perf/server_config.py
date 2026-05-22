@@ -140,16 +140,112 @@ class MamontServer(NFSServer):
         return result.returncode == 0
 
 
-def build_server(cfg: BenchConfig) -> NFSServer:
+class GaneshaServer(NFSServer):
+    GANESHA_CONF = "/etc/ganesha/ganesha.conf"
+
+    def __init__(
+        self,
+        executor: RemoteExecutor,
+        mount_export: str,
+        mount_opts: str,
+        export_path: str,
+    ):
+        super().__init__(
+            "nfs-ganesha",
+            executor,
+            mount_export=mount_export,
+            mount_opts=mount_opts,
+            mount_type="nfs",
+        )
+        self.export_path = export_path
+
+    def _write_config(self):
+        """Generate ganesha config on the remote server."""
+        lines = [
+            "NFS_CORE_PARAM {",
+            " mount_path_pseudo = true;",
+            " Protocols = 3,4;",
+            "}",
+            "",
+            "EXPORT_DEFAULTS {",
+            " Access_Type = RW;",
+            " Squash = No_Root_Squash;",
+            " Sectype = sys;",
+            "}",
+            "",
+            "EXPORT {",
+            " Export_Id = 1;",
+            f" Path = {self.export_path};",
+            f" Pseudo = {self.mount_export};",
+            " Protocols = 3,4;",
+            " Access_Type = RW;",
+            " Squash = No_Root_Squash;",
+            " FSAL {",
+            " Name = VFS;",
+            " }",
+            "}",
+            "",
+            "LOG {",
+            " Default_Log_Level = WARN;",
+            "}",
+        ]
+        content = "\\n".join(lines)
+        self.executor.run(
+            f"printf '{content}\\n' | sudo tee {self.GANESHA_CONF} > /dev/null",
+            check=True,
+        )
+        print(
+            f" Ganesha config written: export {self.export_path} -> "
+            f"pseudo {self.mount_export}"
+        )
+
+    def start(self):
+        print(f" Starting {self.name}...")
+        self._write_config()
+        self.executor.run("sudo systemctl restart nfs-ganesha", check=True)
+        self.wait_ready()
+        print(f" {self.name} started")
+
+    def stop(self):
+        print(f" Stopping {self.name}...")
+        self.executor.run("sudo systemctl stop nfs-ganesha", check=False)
+        time.sleep(2)
+
+    def is_running(self) -> bool:
+        result = self.executor.run(
+            "systemctl is-active --quiet nfs-ganesha",
+            check=False,
+        )
+        return result.returncode == 0
+
+
+def build_servers(cfg: BenchConfig, server_names: list[str]) -> list[NFSServer]:
     executor = RemoteExecutor(
         host=cfg.nfs_server_ip,
         user=cfg.server_user,
     )
-    return MamontServer(
-        executor=executor,
-        project_dir=cfg.mamont_project_dir,
-        export_root=cfg.mamont_export_root,
-        export_paths=cfg.mamont_export_paths,
-        mount_export=cfg.mamont_mount_export,
-        mount_opts=cfg.mamont_mount_opts,
-    )
+    servers: list[NFSServer] = []
+
+    if "mamont" in server_names:
+        servers.append(
+            MamontServer(
+                executor=executor,
+                project_dir=cfg.mamont_project_dir,
+                export_root=cfg.mamont_export_root,
+                export_paths=cfg.mamont_export_paths,
+                mount_export=cfg.mamont_mount_export,
+                mount_opts=cfg.mamont_mount_opts,
+            )
+        )
+
+    if "ganesha" in server_names:
+        servers.append(
+            GaneshaServer(
+                executor=executor,
+                export_path=cfg.ganesha_export_path,
+                mount_export=cfg.ganesha_mount_export,
+                mount_opts=cfg.ganesha_mount_opts,
+            )
+        )
+
+    return servers
